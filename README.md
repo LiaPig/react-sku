@@ -4,7 +4,6 @@
 
 # 在线demo地址
 https://qdnzv.csb.app/
-https://codesandbox.io/s/distracted-albattani-qdnzv?file=/src/App.js
 
 # 文档地址
 https://www.jianshu.com/p/f398b3bdaa67
