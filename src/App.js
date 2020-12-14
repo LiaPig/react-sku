@@ -69,7 +69,9 @@ const zh = {
 // 商品类
 const Goods = class Goods {
   constructor(goods) {
+    // 商品列表数据
     this.list = goods;
+    // 由所有商品的规格 key 组成的数组
     this.attrKey = (() => {
       const result = new Set();
       for (let item of goods) {
@@ -79,6 +81,7 @@ const Goods = class Goods {
       }
       return Array.from(result);
     })();
+    // 商品全部属性选项对象。此对象的成员的 key 为某规格的 key，value 为 这规格的所有选项数组。
     this.attr = (() => {
       const result = {};
       for (let item of goods) {
@@ -92,6 +95,16 @@ const Goods = class Goods {
             result[key].push(value);
           }
         }
+      }
+      return result;
+    })();
+    // 根据商品预测所有选项组合，从而得到所有组合对应的结果
+    this.result = (() => {
+      const result = {};
+      const all = this.allOptions();
+      for (let item of all) {
+        const key = Object.values(item).join("--");
+        result[key] = this.adaptedAttr(item);
       }
       return result;
     })();
@@ -200,6 +213,16 @@ const Goods = class Goods {
     });
     return result;
   }
+  getAdaptedAttrByResult(option) {
+    const sortOption = [];
+    // 排序
+    this.attrKey.forEach((item) => {
+      if (option[item]) {
+        sortOption.push(option[item]);
+      }
+    });
+    return this.result[sortOption.join("--")];
+  }
 };
 
 const example = new Goods(goods.map((item) => item.options));
@@ -222,9 +245,9 @@ function App() {
   // 当前选中的数据
   const [selected, setSelected] = useState({});
   // 可被选的数据
-  const adaptedOption = useMemo(() => example.adaptedAttr(selected), [
-    selected,
-  ]);
+  const adaptedOption = useMemo(() => {
+    return example.getAdaptedAttrByResult(selected);
+  }, [selected]);
   // 选项的状态
   const optionStatus = useMemo(() => {
     const result = {};
