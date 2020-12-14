@@ -1,49 +1,40 @@
-// import logo from './logo.svg';
-// import './App.css';
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 
-// 商品规格
-const names = ["iPhone X", "iPhone XS"];
-const colors = ["黑色", "白色"];
-const storages = ["64g", "128g", "256g"];
 // 现有商品
-const products = [
+const goods = [
   {
     id: 1,
-    options: ["iPhone X", "黑色", "64g"],
+    options: {
+      name: "iPhone X",
+      color: "黑色",
+      storage: "64g",
+    },
   },
   {
     id: 2,
-    options: ["iPhone XS", "黑色", "64g"],
+    options: {
+      name: "iPhone XS",
+      color: "黑色",
+      storage: "64g",
+    },
   },
   {
     id: 3,
-    options: ["iPhone X", "白色", "64g"],
+    options: {
+      name: "iPhone X",
+      color: "白色",
+      storage: "64g",
+    },
   },
   {
     id: 4,
-    options: ["iPhone X", "白色", "256g"],
+    options: {
+      name: "iPhone X",
+      color: "白色",
+      storage: "256g",
+    },
   },
 ];
-// 渲染的数据
-const renderData = [
-  {
-    id: 1,
-    title: "型号",
-    options: names,
-  },
-  {
-    id: 2,
-    title: "颜色",
-    options: colors,
-  },
-  {
-    id: 3,
-    title: "内存",
-    options: storages,
-  },
-];
-
 // 样式们
 const disabledStyle = {
   margin: "0 20px",
@@ -69,181 +60,223 @@ const selectedStyle = {
   border: "1px solid",
   borderColor: "#1890ff",
 };
-
-const combine = function (...chunks) {
-  const res = [];
-
-  const helper = function (chunkIndex, prev) {
-    const chunk = chunks[chunkIndex];
-    const isLast = chunkIndex === chunks.length - 1;
-    for (let val of chunk) {
-      const cur = prev.concat(val);
-      if (isLast) {
-        res.push(cur);
-      } else {
-        helper(chunkIndex + 1, cur);
-      }
-    }
-  };
-
-  helper(0, []);
-
-  return res;
-};
-const getOptionCombine = function (options) {
-  const all = options.map((item) => {
-    return [item, null];
-  });
-  const result = combine(...all);
-
-  return result.map((item) => JSON.stringify(item));
+const zh = {
+  name: "型号",
+  color: "颜色",
+  storage: "内存",
 };
 
-// 获取所有用户可能的选择组合
-const userCombine = products.map((item) => {
-  return {
-    ...item,
-    combine: getOptionCombine(item.options),
-  };
-});
-// console.log("获取所有用户可能的选择", userCombine);
-
-// 查询商品中有无这个选项
-const findOption = function (option) {
-  for (let item of products) {
-    if (item.options.includes(option)) {
-      return true;
-    }
-  }
-  return false;
-};
-
-function App() {
-  // 当前选择
-  const [current, setCurrent] = useState(() => {
-    return new Array(renderData.length).fill(null);
-  });
-  // 专门用这个对象来映射每一个规格对应的状态
-  const [optionStatus, setOptionStatus] = useState(() => {
-    const arr = names.concat(colors, storages);
-    const result = {};
-    for (let item of arr) {
-      result[item] = findOption(item) ? 0 : -1;
-    }
-    return result;
-  });
-
-  const onClick = (index, optionIndex) => {
-    // 用户点击的选项
-    const selectedItem = renderData[index]["options"][optionIndex];
-    // 当前选中
-    const tempCurrent = [...current];
-    // 将要修改的状态对象
-    const temp = { ...optionStatus };
-
-    // 点击了是不可点击的
-    if (optionStatus[selectedItem] === -1) {
-      return;
-    }
-
-    // 获取到用户当前的规则选择状态（要区别是否为取消选中）
-    if (current[index] === selectedItem) {
-      tempCurrent[index] = null;
-      temp[selectedItem] = 0;
-    } else {
-      tempCurrent[index] = selectedItem;
-      temp[selectedItem] = 1;
-    }
-    // console.log("用户当前选择规格", tempCurrent);
-
-    const normalOption = getNormalOption(tempCurrent);
-    // 遍历处理每一个选项的状态
-    for (let item in temp) {
-      // 不可选
-      if (!normalOption.includes(item)) {
-        temp[item] = -1;
-      } else {
-        // 可选
-        if (tempCurrent.includes(item)) {
-          temp[item] = 1;
-        } else {
-          temp[item] = 0;
-        }
-        // console.log(tempCurrent);
+// 商品类
+const Goods = class Goods {
+  constructor(goods) {
+    this.list = goods;
+    this.attrKey = (() => {
+      const result = new Set();
+      for (let item of goods) {
+        Object.keys(item).forEach((attr) => {
+          result.add(attr);
+        });
       }
-    }
-
-    // 再特殊处理每一个有值的选项的同级
-    const valueCurrent = tempCurrent.filter((item) => !!item);
-    for (let value of valueCurrent) {
-      const normalOptions = getSiblingNormalOption(value, tempCurrent);
-      for (let option of normalOptions) {
-        temp[option] = 0;
-      }
-    }
-
-    setCurrent(tempCurrent);
-    setOptionStatus(temp);
-  };
-
-  const getNormalOption = (tempCurrent) => {
-    const normalOption = [];
-    for (let item of userCombine) {
-      if (item.combine.includes(JSON.stringify(tempCurrent))) {
-        // console.log("这个商品有：", item);
-        // 点亮这个商品的状态
-        for (let option in optionStatus) {
-          if (item.options.includes(option) && !normalOption.includes(option)) {
-            normalOption.push(option);
+      return Array.from(result);
+    })();
+    this.attr = (() => {
+      const result = {};
+      for (let item of goods) {
+        const keys = Object.keys(item);
+        for (let key of keys) {
+          if (!result[key]) {
+            result[key] = [];
+          }
+          const value = item[key];
+          if (!result[key].includes(value)) {
+            result[key].push(value);
           }
         }
       }
+      return result;
+    })();
+  }
+  have(option) {
+    if (Object.prototype.toString.call(option) !== "[object Object]") {
+      return undefined;
     }
 
-    return normalOption;
-  };
-
-  // 获取同级规格的其他能被点击的选项
-  const getSiblingNormalOption = (option, current) => {
-    // 分别找到这个有的值是在哪个规格
-    const specIndex = renderData.findIndex((item) =>
-      item.options.includes(option)
-    );
-    // 将这个规格设置为null来求其他选项的状态
-    const siblingCurrent = [...current];
-    siblingCurrent[specIndex] = null;
-
-    // 找到其他同级能被点击的（要过滤掉自己）
-    const options = renderData[specIndex].options;
-    const peerNormalOption = getNormalOption(siblingCurrent).filter((item) => {
-      if (options.includes(item) && item !== option) {
-        return item;
+    const index = this.list.findIndex((item) => {
+      for (let key in option) {
+        if (option[key] !== item[key]) {
+          return false;
+        }
       }
-      return false;
+      return true;
     });
+    const result = index !== -1;
+    return result;
+  }
+  find(option) {
+    if (Object.prototype.toString.call(option) !== "[object Object]") {
+      return undefined;
+    }
 
-    return peerNormalOption;
-  };
+    const result = [];
+    this.list.forEach((item, index) => {
+      const keys = Object.keys(option);
+      const isEqual = keys.every((key) => {
+        return option[key] === item[key];
+      });
+      if (isEqual) {
+        result.push(index);
+      }
+    });
+    return result;
+  }
+  adaptedAttr(option) {
+    const list = this.list;
+    const result = {};
+
+    for (let key of this.attrKey) {
+      result[key] = [];
+    }
+
+    // 找到符合该选项规格的商品下标
+    const indexArr = this.find(option);
+    indexArr.forEach((index) => {
+      for (let key in list[index]) {
+        const value = list[index][key];
+        if (!result[key].includes(value)) {
+          result[key].push(value);
+        }
+      }
+    });
+    // 与已选的统一规则的要特殊处理
+    for (let key in option) {
+      const tempOption = { ...option };
+      const otherOption = this.attr[key].filter(
+        (item) => item !== tempOption[key]
+      );
+      for (let item of otherOption) {
+        tempOption[key] = item;
+        if (this.find(tempOption).length > 0) {
+          result[key].push(item);
+        }
+      }
+    }
+    return result;
+  }
+  combine(...chunks) {
+    const res = [];
+
+    const helper = function (chunkIndex, prev) {
+      const chunk = chunks[chunkIndex];
+      const isLast = chunkIndex === chunks.length - 1;
+      for (let val of chunk) {
+        const cur = prev.concat(val);
+        if (isLast) {
+          res.push(cur);
+        } else {
+          helper(chunkIndex + 1, cur);
+        }
+      }
+    };
+
+    helper(0, []);
+
+    return res;
+  }
+  allOptions() {
+    const options = [];
+    const optionsKey = [];
+    for (let key in this.attr) {
+      options.push(this.attr[key].concat(null));
+      optionsKey.push(key);
+    }
+    const result = this.combine(...options).map((item, index) => {
+      const obj = {};
+      item.forEach((option, optionIndex) => {
+        if (!!option) {
+          obj[optionsKey[optionIndex]] = option;
+        }
+      });
+      return obj;
+    });
+    return result;
+  }
+};
+
+const example = new Goods(goods.map((item) => item.options));
+const { attr, attrKey } = example;
+
+function App() {
+  // 渲染的选择规格数据
+  const renderGoods = attrKey.map((key) => {
+    if (key === "storage") {
+      return {
+        label: key,
+        list: ["64g", "128g", "256g"],
+      };
+    }
+    return {
+      label: key,
+      list: attr[key],
+    };
+  });
+  // 当前选中的数据
+  const [selected, setSelected] = useState({});
+  // 可被选的数据
+  const adaptedOption = useMemo(() => example.adaptedAttr(selected), [
+    selected,
+  ]);
+  // 选项的状态
+  const optionStatus = useMemo(() => {
+    const result = {};
+    renderGoods.forEach((item) => {
+      const key = item.label;
+      const list = item.list;
+      result[key] = {};
+      list.forEach((option) => {
+        result[key][option] = -1;
+        if (adaptedOption[key].includes(option)) {
+          result[key][option] = 0;
+        }
+      });
+    });
+    return result;
+  }, [adaptedOption, renderGoods]);
+
+  function onClick(value, optionKey) {
+    // 禁用不可点
+    if (!optionStatus[optionKey] || optionStatus[optionKey][value] === -1) {
+      return;
+    }
+
+    const tempSelected = { ...selected };
+    // 是否是取消
+    if (tempSelected[optionKey] === value) {
+      delete tempSelected[optionKey];
+    } else {
+      tempSelected[optionKey] = value;
+    }
+    setSelected(tempSelected);
+  }
 
   return (
     <div>
-      {renderData.map((item, index) => (
-        <div key={item.id}>
-          <p>{item.title}</p>
+      {renderGoods.map((options, index) => (
+        <div key={index}>
+          <p>{zh[options.label]}</p>
           <div>
-            {item.options.map((option, optionIndex) => (
+            {options.list.map((item, itemIdx) => (
               <span
-                key={option}
+                key={itemIdx}
+                onClick={() => onClick(item, options.label)}
                 style={
-                  optionStatus[option] === -1
+                  optionStatus[options.label][item] === -1
                     ? disabledStyle
-                    : optionStatus[option] === 1
+                    : selected[options.label] === item
                     ? selectedStyle
                     : normalStyle
                 }
-                onClick={() => onClick(index, optionIndex)}
               >
-                {option}
+                {item}
               </span>
             ))}
           </div>
